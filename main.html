@@ -77,6 +77,16 @@
     justify-content:center;
   }
 
+  #history {
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  #history .date {
+    font-weight: bold;
+    margin-top: 8px;
+  }
+
+
   /* クリア/フルコン用の背景クラス（JSでも直接色を設定しますが、念のため） */
   .status-clear { background: #e7f6e9; }  /* 薄緑 */
   .status-fullcombo { background: #fff9d6; } /* 薄黄色 */
@@ -99,6 +109,8 @@
     <p class="small">CSVファイルをアップロードすると、曲の一覧を読み取って自動で表に配置します。</p>
     <h2>凡例（ジャンル色 = タイトル文字色）</h2>
     <div class="legend" id="legend"></div>
+    <h2>更新履歴</h2>
+    <div id="history" class="small"></div>
   </aside>
   <main class="board">
     <div id="slotsContainer"></div>
@@ -183,6 +195,7 @@ function placeSong(slotGrid, song){
 function ingestCSVText(text){
   const rows=parseCSV(text);
   if(rows.length===0) return;
+  const songsForHistory = [];
   // ヘッダーは小文字化してキーにする
   const header=rows[0].map(h=>h.trim().toLowerCase());
   const data=rows.slice(1);
@@ -226,6 +239,9 @@ function ingestCSVText(text){
       status: convertStatus(obj.status||obj.completed||'0'),
       firstDate: obj.firstdate||obj['firstdate']||''
     };
+
+    songsForHistory.push(song);
+
     if(song.status==='フルコンボ') fullcomboCount++;
     else if(song.status==='クリア') clearCount++;
     else notClearCount++;
@@ -246,6 +262,8 @@ function ingestCSVText(text){
     item.appendChild(sw); item.appendChild(label);
     legend.appendChild(item);
   });
+
+  buildHistory(songsForHistory);
 }
 
 document.getElementById('csvFile').addEventListener('change', e=>{
@@ -286,6 +304,47 @@ document.getElementById('exportPdf').addEventListener('click', ()=>{
       board.style.overflow = originalOverflow;
     });
 });
+
+function buildHistory(data) {
+  const historyMap = new Map();
+
+  data.forEach(song => {
+    if (song.status !== 'フルコンボ') return;
+    if (!song.firstDate) return;
+
+    // 日付正規化（yyyy-mm-dd → yyyy年mm月dd日）
+    const d = new Date(song.firstDate);
+    if (isNaN(d)) return;
+
+    const key = d.toISOString().slice(0,10);
+    if (!historyMap.has(key)) historyMap.set(key, []);
+    historyMap.get(key).push(`${song.rank}：${song.title}`);
+  });
+
+  // フルコンボ日付表示ロジック
+  const sortedKeys = [...historyMap.keys()].sort((a,b)=> b.localeCompare(a));
+
+  const historyEl = document.getElementById('history');
+  historyEl.innerHTML = '';
+
+  sortedKeys.forEach(k => {
+    const d = new Date(k);
+    const dateLabel =
+      `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+
+    const dateDiv = document.createElement('div');
+    dateDiv.className = 'date';
+    dateDiv.textContent = dateLabel;
+    historyEl.appendChild(dateDiv);
+
+    historyMap.get(k).forEach(item => {
+      const line = document.createElement('div');
+      line.textContent = `・${item}`;
+      historyEl.appendChild(line);
+    });
+  });
+}
+
 
 window.onload = () => {
   ingestCSVText(defaultCSV);
