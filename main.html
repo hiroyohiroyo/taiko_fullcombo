@@ -313,7 +313,7 @@ function buildHistory(data) {
     if (!song.firstDate) return;
 
     // 日付正規化（yyyy-mm-dd → yyyy年mm月dd日）
-    const d = new Date(song.firstDate.replace(/-/g, '/'));
+    const d = new Date(song.firstDate);
     if (isNaN(d)) return;
 
     const key = d.toISOString().slice(0,10);
